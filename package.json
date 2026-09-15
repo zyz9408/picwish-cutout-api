@@ -11,7 +11,5 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "dependencies": {
-    "playwright-core": "^1.63.0"
-  }
+  "dependencies": {}
 }
