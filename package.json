@@ -1,0 +1,17 @@
+{
+  "name": "cutout-api",
+  "version": "1.0.0",
+  "description": "把佐糖网页版的抠图功能包装成 HTTP API,别人(或你自己的程序)可以直接调用。 零依赖,Node 18+ 直接运行。",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}

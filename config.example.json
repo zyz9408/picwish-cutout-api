@@ -1,0 +1,13 @@
+{
+  "host": "127.0.0.1",
+  "port": 8787,
+  "apiKey": "",
+  "accountToken": "",
+  "productId": 482,
+  "language": "en",
+  "hd": true,
+  "picQuality": "hd",
+  "maxSizeMB": 15,
+  "timeoutSec": 120,
+  "pollMs": 800
+}
