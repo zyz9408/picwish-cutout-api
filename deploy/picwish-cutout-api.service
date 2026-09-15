@@ -1,0 +1,17 @@
+[Unit]
+Description=PicWish Cutout Proxy API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www
+Group=www
+WorkingDirectory=/www/wwwroot/picwish-cutout-api
+ExecStart=/www/server/nvm/versions/node/v22.19.0/bin/node server.js
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
