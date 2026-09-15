@@ -58,7 +58,8 @@ function guestToken(pid) {
 function apiError(data, httpStatus) {
   const e = new Error((data && data.message) || `HTTP ${httpStatus}`);
   e.apiStatus = data && data.status;
-  e.httpStatus = httpStatus;
+  // 上游常用 HTTP 200 包裹业务错误，不能把失败继续作为 HTTP 200 返回。
+  e.httpStatus = httpStatus >= 400 ? httpStatus : 502;
   return e;
 }
 
@@ -96,6 +97,18 @@ async function fetchWithTimeout(url, opts = {}, ms = 60000) {
   } finally {
     clearTimeout(t);
   }
+}
+
+async function resolveResultImage({ requireHd, fetchHdImage, previewImage }) {
+  if (requireHd) {
+    const hdImage = await fetchHdImage();
+    if (!hdImage) {
+      throw Object.assign(new Error('高清结果接口未返回图片，拒绝回退到带水印预览图'), { httpStatus: 502 });
+    }
+    return hdImage;
+  }
+  if (!previewImage) throw Object.assign(new Error('结果图中没有图片地址'), { httpStatus: 502 });
+  return previewImage;
 }
 
 // 根据魔数识别图片类型
@@ -199,20 +212,20 @@ async function cutout(imageBuf, opts = {}) {
     throw Object.assign(new Error('任务超时'), { httpStatus: 504 });
   }
 
-  // 5. 取图:优先走 image-url 接口(无水印高清),失败则回退任务结果里的图
-  let imageUrl = null;
+  // 5. 取图:高清模式必须使用 image-url 接口。任务结果里的 image 是带水印预览，
+  // 不能在高清接口失败时伪装成成功结果返回。
   const picQuality = opts.quality || config.picQuality;
-  if (config.hd && !opts.noHd) {
-    try {
+  const imageUrl = await resolveResultImage({
+    requireHd: config.hd && !opts.noHd,
+    fetchHdImage: async () => {
       const img = await gwRequest('GET', `/tasks/login/image-url/segmentation/${taskId}`, {
         extraParams: { pic_quality: picQuality },
         token: sessionToken,
       });
-      imageUrl = img.data && img.data.image;
-    } catch (e) { console.warn('[warn] image-url 接口失败,回退任务结果图:', e.message); }
-  }
-  if (!imageUrl) imageUrl = result.data.image;
-  if (!imageUrl) throw Object.assign(new Error('结果图中没有图片地址'), { httpStatus: 502 });
+      return img.data && img.data.image;
+    },
+    previewImage: result.data.image,
+  });
 
   let out;
   try {
@@ -341,9 +354,13 @@ box.ondrop=async e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(!f)re
   }
 });
 
-server.listen(config.port, config.host, () => {
-  console.log(`佐糖抠图反代已启动: http://${config.host}:${config.port}`);
-  console.log(`认证模式: ${config.accountToken ? '账号 token' : '游客(免登录)'},产品ID: ${config.productId},高清: ${config.hd ? config.picQuality : '关'}`);
-  if (!config.apiKey) console.log('警告: 未设置 apiKey,任何人都能使用该服务');
-  console.log('用法: curl -X POST http://127.0.0.1:' + config.port + '/api/cutout --data-binary @test.png -o out.png');
-});
+if (require.main === module) {
+  server.listen(config.port, config.host, () => {
+    console.log(`佐糖抠图反代已启动: http://${config.host}:${config.port}`);
+    console.log(`认证模式: ${config.accountToken ? '账号 token' : '游客(免登录)'},产品ID: ${config.productId},高清: ${config.hd ? config.picQuality : '关'}`);
+    if (!config.apiKey) console.log('警告: 未设置 apiKey,任何人都能使用该服务');
+    console.log('用法: curl -X POST http://127.0.0.1:' + config.port + '/api/cutout --data-binary @test.png -o out.png');
+  });
+}
+
+module.exports = { resolveResultImage };
