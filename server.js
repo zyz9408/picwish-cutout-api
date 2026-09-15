@@ -303,7 +303,9 @@ box.ondrop=async e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(!f)re
         usage: 'POST /api/cutout   (multipart 字段 image,或直接传图片二进制;查询参数 hd=0 可关高清)',
       });
     }
-    if (req.method === 'POST' && url.pathname === '/api/cutout') {
+    const isBinaryApi = url.pathname === '/api/cutout';
+    const isPicWishCompatibleApi = url.pathname === '/api/tasks/visual/segmentation';
+    if (req.method === 'POST' && (isBinaryApi || isPicWishCompatibleApi)) {
       if (!checkAuth(req)) return json(res, 401, { error: 'API key 错误' });
       const rawCt = req.headers['content-type'] || '';
       const raw = await readBody(req);
@@ -316,6 +318,14 @@ box.ondrop=async e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(!f)re
         noHd: url.searchParams.get('hd') === '0',
       });
       console.log(`[${new Date().toISOString()}] 抠图完成,结果 ${(out.length / 1024).toFixed(0)} KB`);
+      // PicWish 官方 API 兼容模式：nanobanana 原逻辑会读取 data.image，
+      // 随后 fetch 该地址。data URL 可被浏览器直接 fetch，且无需额外临时存储。
+      if (isPicWishCompatibleApi) {
+        return json(res, 200, {
+          status: 200,
+          data: { image: `data:image/png;base64,${out.toString('base64')}` },
+        });
+      }
       res.writeHead(200, {
         'Content-Type': 'image/png',
         'Content-Length': out.length,

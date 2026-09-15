@@ -25,6 +25,16 @@ curl -X POST http://127.0.0.1:8787/api/cutout -F "image=@test.png" -o out.png
 
 返回:直接就是抠好的 **PNG 图片二进制**。失败时返回 JSON `{"error": "..."}`。
 
+同时提供兼容 PicWish 官方调用格式的端点，供只支持 `X-API-KEY` + multipart 的前端使用：
+
+```bash
+curl -X POST https://你的域名/api/tasks/visual/segmentation \
+  -H "X-API-KEY: 你的反代Key" \
+  -F "image_file=@test.png"
+```
+
+成功响应保持 `{"status":200,"data":{"image":"..."}}` 结构。
+
 可选查询参数:
 
 - `?quality=hd` 高清原分辨率(默认);`?quality=free` 低分辨率预览(约缩到 640px);`standard` 同 hd
@@ -96,6 +106,13 @@ location = /api/cutout {
     proxy_read_timeout 180s;
     proxy_send_timeout 180s;
     proxy_pass http://127.0.0.1:8787/api/cutout;
+}
+
+location = /api/tasks/visual/segmentation {
+    client_max_body_size 15m;
+    proxy_read_timeout 180s;
+    proxy_send_timeout 180s;
+    proxy_pass http://127.0.0.1:8787/api/tasks/visual/segmentation;
 }
 
 location = /health {
